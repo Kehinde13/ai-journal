@@ -12,7 +12,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kehinde13.aijournal",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,8 +30,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "ai-journal",
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a970cbe5-34eb-40eb-9ebc-7a922dc8c645"
+      }
+    }
   }
 }
