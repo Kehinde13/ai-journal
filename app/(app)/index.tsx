@@ -30,6 +30,9 @@ const DARK = {
   error: '#ff4d4d',
   btnBg: '#ffffff',
   btnText: '#000000',
+  summaryBg: '#1a1a2e',
+  summaryBorder: '#2e2e4e',
+  summaryText: '#aaaacc',
 };
 
 const LIGHT = {
@@ -42,6 +45,9 @@ const LIGHT = {
   error: '#cc2200',
   btnBg: '#000000',
   btnText: '#ffffff',
+  summaryBg: '#f0f0ff',
+  summaryBorder: '#d0d0f0',
+  summaryText: '#5555aa',
 };
 
 export default function HomeScreen() {
@@ -101,6 +107,15 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.summaryStrip}
+        onPress={() => router.push('/(app)/summary')}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.summaryStripText}>✦ Weekly Summary</Text>
+        <Text style={styles.summaryStripArrow}>→</Text>
+      </TouchableOpacity>
 
       {loading ? (
         <View style={styles.centered}>
@@ -210,6 +225,25 @@ function getStyles(C: typeof DARK) {
     emptyHint: {
       color: C.textMuted,
       fontSize: 14,
+    },
+    summaryStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: C.summaryBg,
+      borderBottomWidth: 1,
+      borderBottomColor: C.summaryBorder,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+    },
+    summaryStripText: {
+      color: C.summaryText,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    summaryStripArrow: {
+      color: C.summaryText,
+      fontSize: 15,
     },
     list: {
       padding: 20,

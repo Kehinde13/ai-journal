@@ -8,12 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
   StatusBar,
   useColorScheme,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
+import { analyseEntry } from '../../services/ai';
 
 const DARK = {
   bg: '#0f0f0f',
@@ -49,6 +51,7 @@ export default function NewEntryScreen() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState('');
 
   const handleSave = async () => {
@@ -59,18 +62,57 @@ export default function NewEntryScreen() {
     setError('');
     setLoading(true);
 
-    const { error: e } = await supabase.from('entries').insert({
-      user_id: user!.id,
-      title: title.trim() || null,
-      content: content.trim(),
-    });
+    const trimmedContent = content.trim();
+    const { data: inserted, error: e } = await supabase
+      .from('entries')
+      .insert({
+        user_id: user!.id,
+        title: title.trim() || null,
+        content: trimmedContent,
+      })
+      .select('id')
+      .single();
 
     if (e) {
       setError(e.message);
       setLoading(false);
-    } else {
-      router.back();
+      return;
     }
+
+    setLoading(false);
+    setAnalysing(true);
+
+    console.log('[AI] EXPO_PUBLIC_BACKEND_URL:', process.env.EXPO_PUBLIC_BACKEND_URL);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (accessToken && inserted?.id) {
+        const result = await analyseEntry(trimmedContent, accessToken);
+        console.log('[AI] analyseEntry response:', JSON.stringify(result, null, 2));
+        if (result?.mood || result?.moodScore !== undefined) {
+          const { error: updateError } = await supabase
+            .from('entries')
+            .update({
+              mood: result.mood ?? null,
+              mood_score: result.moodScore ?? null,
+              insights: result.insights ?? null,
+            })
+            .eq('id', inserted.id);
+          if (updateError) {
+            console.log('[AI] Supabase update error:', updateError.message);
+          } else {
+            console.log('[AI] Supabase update success — mood:', result.mood, 'moodScore:', result.moodScore);
+          }
+        } else {
+          console.log('[AI] No mood data in response, skipping update');
+        }
+      }
+    } catch (err) {
+      console.log('[AI] analyseEntry threw:', err instanceof Error ? err.message : String(err));
+    }
+
+    router.replace(`/entry/${inserted.id}`);
   };
 
   return (
@@ -84,7 +126,7 @@ export default function NewEntryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave} disabled={loading} style={styles.saveBtn}>
+        <TouchableOpacity onPress={handleSave} disabled={loading || analysing} style={styles.saveBtn}>
           {loading ? (
             <ActivityIndicator color={C.btnText} size="small" />
           ) : (
@@ -114,6 +156,13 @@ export default function NewEntryScreen() {
         />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </View>
+
+      <Modal visible={analysing} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <ActivityIndicator color="#ffffff" size="large" />
+          <Text style={styles.overlayText}>Analysing mood...</Text>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -172,6 +221,18 @@ function getStyles(C: typeof DARK) {
       fontSize: 16,
       lineHeight: 24,
       paddingVertical: 0,
+    },
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    overlayText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '500',
     },
     errorText: {
       color: C.error,
