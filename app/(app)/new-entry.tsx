@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Animated,
   StatusBar,
   useColorScheme,
 } from 'react-native';
@@ -27,6 +28,10 @@ const DARK = {
   error: '#ff4d4d',
   btnBg: '#ffffff',
   btnText: '#000000',
+  btnDisabled: '#333333',
+  btnTextDisabled: '#666666',
+  toastBg: '#ff4d4d',
+  charCount: '#555555',
 };
 
 const LIGHT = {
@@ -39,6 +44,10 @@ const LIGHT = {
   error: '#cc2200',
   btnBg: '#000000',
   btnText: '#ffffff',
+  btnDisabled: '#dddddd',
+  btnTextDisabled: '#aaaaaa',
+  toastBg: '#cc2200',
+  charCount: '#aaaaaa',
 };
 
 export default function NewEntryScreen() {
@@ -53,6 +62,22 @@ export default function NewEntryScreen() {
   const [loading, setLoading] = useState(false);
   const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+  const toastAnim = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(2600),
+      Animated.timing(toastAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start();
+    toastTimer.current = setTimeout(() => setToast(''), 3000);
+  };
+
+  const isBusy = loading || analysing;
 
   const handleSave = async () => {
     if (!content.trim()) {
@@ -74,7 +99,7 @@ export default function NewEntryScreen() {
       .single();
 
     if (e) {
-      setError(e.message);
+      showToast(e.message);
       setLoading(false);
       return;
     }
@@ -126,11 +151,15 @@ export default function NewEntryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSave} disabled={loading || analysing} style={styles.saveBtn}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={isBusy}
+          style={[styles.saveBtn, isBusy && styles.saveBtnDisabled]}
+        >
           {loading ? (
-            <ActivityIndicator color={C.btnText} size="small" />
+            <ActivityIndicator color={isBusy ? C.btnTextDisabled : C.btnText} size="small" />
           ) : (
-            <Text style={styles.saveBtnText}>Save</Text>
+            <Text style={[styles.saveBtnText, isBusy && styles.saveBtnTextDisabled]}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -154,8 +183,21 @@ export default function NewEntryScreen() {
           textAlignVertical="top"
           autoFocus
         />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <View style={styles.contentFooter}>
+          {error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : (
+            <View />
+          )}
+          <Text style={styles.charCount}>{content.length}</Text>
+        </View>
       </View>
+
+      {toast ? (
+        <Animated.View style={[styles.toast, { opacity: toastAnim }]}>
+          <Text style={styles.toastText}>{toast}</Text>
+        </Animated.View>
+      ) : null}
 
       <Modal visible={analysing} transparent animationType="fade">
         <View style={styles.overlay}>
@@ -199,10 +241,16 @@ function getStyles(C: typeof DARK) {
       minWidth: 64,
       alignItems: 'center',
     },
+    saveBtnDisabled: {
+      backgroundColor: C.btnDisabled,
+    },
     saveBtnText: {
       color: C.btnText,
       fontSize: 14,
       fontWeight: '600',
+    },
+    saveBtnTextDisabled: {
+      color: C.btnTextDisabled,
     },
     body: {
       flex: 1,
@@ -222,6 +270,35 @@ function getStyles(C: typeof DARK) {
       lineHeight: 24,
       paddingVertical: 0,
     },
+    contentFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: 8,
+    },
+    errorText: {
+      color: C.error,
+      fontSize: 13,
+    },
+    charCount: {
+      color: C.charCount,
+      fontSize: 12,
+    },
+    toast: {
+      position: 'absolute',
+      top: 120,
+      left: 20,
+      right: 20,
+      backgroundColor: C.toastBg,
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    toastText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '500',
+    },
     overlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.75)',
@@ -233,11 +310,6 @@ function getStyles(C: typeof DARK) {
       color: '#ffffff',
       fontSize: 16,
       fontWeight: '500',
-    },
-    errorText: {
-      color: C.error,
-      fontSize: 13,
-      marginTop: 12,
     },
   });
 }

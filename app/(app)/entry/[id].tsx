@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
+  Animated,
   Alert,
   StatusBar,
   useColorScheme,
@@ -36,6 +36,7 @@ const DARK = {
   moodCardBorder: '#2e2e4e',
   insightsCard: '#111111',
   insightsCardBorder: '#2a2a2a',
+  skeleton: '#1e1e1e',
 };
 
 const LIGHT = {
@@ -50,7 +51,47 @@ const LIGHT = {
   moodCardBorder: '#d0d0f0',
   insightsCard: '#f8f8f8',
   insightsCardBorder: '#e5e5e5',
+  skeleton: '#eeeeee',
 };
+
+const entrySkW = StyleSheet.create({
+  w35: { width: '35%' },
+  w65: { width: '65%' },
+  w70: { width: '70%' },
+  w100: { width: '100%' },
+});
+
+function SkeletonEntry({ C }: { C: typeof DARK }) {
+  const anim = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const line = (w: ReturnType<typeof StyleSheet.flatten>, h: number, mb: number) => (
+    <View style={[w, { height: h, borderRadius: 4, backgroundColor: C.skeleton, marginBottom: mb }]} />
+  );
+
+  return (
+    <Animated.View style={{ opacity: anim, padding: 24 }}>
+      {line(entrySkW.w65, 24, 10)}
+      {line(entrySkW.w35, 11, 28)}
+      <View style={{ height: 80, borderRadius: 12, backgroundColor: C.skeleton, marginBottom: 16 }} />
+      <View style={{ height: 100, borderRadius: 12, backgroundColor: C.skeleton, marginBottom: 24 }} />
+      {line(entrySkW.w100, 13, 8)}
+      {line(entrySkW.w100, 13, 8)}
+      {line(entrySkW.w100, 13, 8)}
+      {line(entrySkW.w70, 13, 0)}
+    </Animated.View>
+  );
+}
 
 export default function EntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -152,12 +193,14 @@ export default function EntryScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={C.text} />
-        </View>
+        <SkeletonEntry C={C} />
       ) : error ? (
         <View style={styles.centered}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.goBackBtn} onPress={() => router.back()}>
+            <Text style={styles.goBackText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       ) : entry ? (
         <ScrollView contentContainerStyle={styles.body}>
@@ -196,7 +239,7 @@ export default function EntryScreen() {
             disabled={deleting}
           >
             {deleting ? (
-              <ActivityIndicator color={C.error} size="small" />
+              <Text style={styles.deleteBtnText}>Deleting...</Text>
             ) : (
               <Text style={styles.deleteBtnText}>Delete Entry</Text>
             )}
@@ -231,12 +274,31 @@ function getStyles(C: typeof DARK) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: 24,
+    },
+    errorEmoji: {
+      fontSize: 36,
+      marginBottom: 4,
     },
     errorText: {
       color: C.error,
       fontSize: 14,
       textAlign: 'center',
-      paddingHorizontal: 24,
+      marginBottom: 4,
+    },
+    goBackBtn: {
+      marginTop: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 28,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.separator,
+    },
+    goBackText: {
+      color: C.textSub,
+      fontSize: 14,
+      fontWeight: '500',
     },
     body: {
       padding: 24,

@@ -27,6 +27,7 @@ const DARK = {
   summaryCard: '#111111',
   summaryCardBorder: '#2a2a2a',
   insightDot: '#444444',
+  emptyText: '#666666',
 };
 
 const LIGHT = {
@@ -42,9 +43,8 @@ const LIGHT = {
   summaryCard: '#f8f8f8',
   summaryCardBorder: '#e5e5e5',
   insightDot: '#cccccc',
+  emptyText: '#999999',
 };
-
-const MOOD_EMOJI: Record<string, string> = {};
 
 function moodEmoji(mood: string) {
   const m = mood.toLowerCase();
@@ -59,6 +59,8 @@ function moodEmoji(mood: string) {
   return '📝';
 }
 
+type LoadingStep = 'fetching' | 'generating';
+
 export default function SummaryScreen() {
   const { user } = useAuth();
   const router = useRouter();
@@ -67,12 +69,16 @@ export default function SummaryScreen() {
   const styles = getStyles(C);
 
   const [loading, setLoading] = useState(true);
+  const [loadingStep, setLoadingStep] = useState<LoadingStep>('fetching');
+  const [noEntries, setNoEntries] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<WeeklySummaryResult | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
+        setLoadingStep('fetching');
+
         const now = new Date();
         const dayOfWeek = now.getDay();
         const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -99,7 +105,7 @@ export default function SummaryScreen() {
         }
 
         if (!entries || entries.length === 0) {
-          setError('No entries in the last 7 days.');
+          setNoEntries(true);
           setLoading(false);
           return;
         }
@@ -113,6 +119,7 @@ export default function SummaryScreen() {
           return;
         }
 
+        setLoadingStep('generating');
         const data = await weeklySummary(entries, accessToken);
         setResult(data);
       } catch (err) {
@@ -139,7 +146,20 @@ export default function SummaryScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={C.text} size="large" />
-          <Text style={styles.loadingText}>Generating your summary...</Text>
+          <Text style={styles.loadingText}>
+            {loadingStep === 'fetching' ? 'Reading your entries...' : 'Generating summary...'}
+          </Text>
+        </View>
+      ) : noEntries ? (
+        <View style={styles.centered}>
+          <Text style={styles.emptyEmoji}>📅</Text>
+          <Text style={styles.emptyTitle}>No entries this week yet.</Text>
+          <Text style={styles.emptyHint}>
+            Start journaling to get your weekly summary.
+          </Text>
+          <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
+            <Text style={styles.backLinkText}>Back to Journal</Text>
+          </TouchableOpacity>
         </View>
       ) : error ? (
         <View style={styles.centered}>
@@ -212,8 +232,8 @@ function getStyles(C: typeof DARK) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 14,
-      paddingHorizontal: 24,
+      gap: 10,
+      paddingHorizontal: 32,
     },
     loadingText: {
       color: C.textSub,
@@ -223,6 +243,35 @@ function getStyles(C: typeof DARK) {
       color: C.error,
       fontSize: 14,
       textAlign: 'center',
+    },
+    emptyEmoji: {
+      fontSize: 48,
+      marginBottom: 8,
+    },
+    emptyTitle: {
+      color: C.text,
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    emptyHint: {
+      color: C.emptyText,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    backLink: {
+      marginTop: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 28,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.separator,
+    },
+    backLinkText: {
+      color: C.textSub,
+      fontSize: 14,
+      fontWeight: '500',
     },
     body: {
       padding: 20,
