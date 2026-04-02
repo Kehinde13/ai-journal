@@ -7,9 +7,11 @@ import {
   Dimensions,
   FlatList,
   ViewToken,
+  useColorScheme,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { DARK, LIGHT } from '../constants/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,9 @@ export default function Onboarding() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
+  const scheme = useColorScheme();
+  const C = scheme === 'dark' ? DARK : LIGHT;
+  const styles = getStyles(C);
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -104,71 +109,73 @@ export default function Onboarding() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  slide: {
-    width,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingBottom: 160,
-  },
-  emoji: {
-    fontSize: 80,
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#888888',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 52,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    gap: 24,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#333333',
-  },
-  dotActive: {
-    backgroundColor: '#ffffff',
-    width: 24,
-  },
-  button: {
-    backgroundColor: '#ffffff',
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 50,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#0a0a0a',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+function getStyles(C: typeof DARK) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: C.bg,
+    },
+    slide: {
+      width,
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 40,
+      paddingBottom: 160,
+    },
+    emoji: {
+      fontSize: 88,
+      marginBottom: 36,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: C.text,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: C.textMuted,
+      textAlign: 'center',
+      lineHeight: 26,
+    },
+    footer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingBottom: 52,
+      paddingHorizontal: 32,
+      alignItems: 'center',
+      gap: 28,
+    },
+    dots: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: C.border,
+    },
+    dotActive: {
+      backgroundColor: C.accent,
+      width: 24,
+    },
+    button: {
+      backgroundColor: C.accent,
+      paddingVertical: 16,
+      paddingHorizontal: 48,
+      borderRadius: 50,
+      width: '100%',
+      alignItems: 'center',
+    },
+    buttonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });
+}

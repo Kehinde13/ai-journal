@@ -3,16 +3,25 @@ import {
   View,
   Text,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Alert,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
   useColorScheme,
+  ViewStyle,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
+import { analyseEntry } from '../../../services/ai';
+import { getRelativeTime } from '../../../utils/time';
+import { DARK, LIGHT } from '../../../constants/colors';
 
 type Entry = {
   id: string;
@@ -22,36 +31,6 @@ type Entry = {
   mood: string | null;
   mood_score: number | null;
   insights: string | null;
-};
-
-const DARK = {
-  bg: '#0f0f0f',
-  separator: '#1e1e1e',
-  text: '#ffffff',
-  textBody: '#cccccc',
-  textSub: '#888888',
-  textFaint: '#555555',
-  error: '#ff4d4d',
-  moodCard: '#1a1a2e',
-  moodCardBorder: '#2e2e4e',
-  insightsCard: '#111111',
-  insightsCardBorder: '#2a2a2a',
-  skeleton: '#1e1e1e',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  separator: '#e5e5e5',
-  text: '#000000',
-  textBody: '#333333',
-  textSub: '#555555',
-  textFaint: '#888888',
-  error: '#cc2200',
-  moodCard: '#f0f0ff',
-  moodCardBorder: '#d0d0f0',
-  insightsCard: '#f8f8f8',
-  insightsCardBorder: '#e5e5e5',
-  skeleton: '#eeeeee',
 };
 
 const entrySkW = StyleSheet.create({
@@ -75,7 +54,7 @@ function SkeletonEntry({ C }: { C: typeof DARK }) {
     return () => loop.stop();
   }, []);
 
-  const line = (w: ReturnType<typeof StyleSheet.flatten>, h: number, mb: number) => (
+  const line = (w: ViewStyle, h: number, mb: number) => (
     <View style={[w, { height: h, borderRadius: 4, backgroundColor: C.skeleton, marginBottom: mb }]} />
   );
 
@@ -106,6 +85,12 @@ export default function EntryScreen() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
   useEffect(() => {
     const fetchEntry = async () => {
       const { data, error: e } = await supabase
@@ -125,6 +110,69 @@ export default function EntryScreen() {
 
     fetchEntry();
   }, [id]);
+
+  const startEdit = () => {
+    setEditTitle(entry?.title ?? '');
+    setEditContent(entry?.content ?? '');
+    setEditError('');
+    setIsEditing(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editContent.trim()) {
+      setEditError('Content cannot be empty.');
+      return;
+    }
+    setEditError('');
+    setSaving(true);
+
+    const trimmedTitle = editTitle.trim() || null;
+    const trimmedContent = editContent.trim();
+
+    const { error: updateErr } = await supabase
+      .from('entries')
+      .update({ title: trimmedTitle, content: trimmedContent })
+      .eq('id', id)
+      .eq('user_id', user!.id);
+
+    if (updateErr) {
+      setEditError(updateErr.message);
+      setSaving(false);
+      return;
+    }
+
+    let newMood: string | null = entry?.mood ?? null;
+    let newMoodScore: number | null = entry?.mood_score ?? null;
+    let newInsights: string | null = entry?.insights ?? null;
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (accessToken) {
+        const result = await analyseEntry(trimmedContent, accessToken);
+        if (result?.mood || result?.moodScore !== undefined) {
+          newMood = result.mood ?? null;
+          newMoodScore = result.moodScore ?? null;
+          newInsights = result.insights ?? null;
+
+          await supabase
+            .from('entries')
+            .update({ mood: newMood, mood_score: newMoodScore, insights: newInsights })
+            .eq('id', id);
+        }
+      }
+    } catch {
+      // AI re-analysis failed — keep existing mood data
+    }
+
+    setEntry(prev =>
+      prev
+        ? { ...prev, title: trimmedTitle ?? '', content: trimmedContent, mood: newMood, mood_score: newMoodScore, insights: newInsights }
+        : prev
+    );
+    setSaving(false);
+    setIsEditing(false);
+  };
 
   const moodEmoji = (mood: string) => {
     const m = mood.toLowerCase();
@@ -154,6 +202,7 @@ export default function EntryScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             setDeleting(true);
             const { error: e } = await supabase
               .from('entries')
@@ -172,24 +221,40 @@ export default function EntryScreen() {
     );
   };
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+        {isEditing ? (
+          <>
+            <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backBtn} disabled={saving}>
+              <Text style={styles.backText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleEditSave}
+              disabled={saving}
+              style={[styles.editSaveBtn, saving && styles.editSaveBtnDisabled]}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={[styles.editSaveBtnText, saving && styles.editSaveBtnTextDisabled]}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            {entry && !loading && (
+              <TouchableOpacity onPress={startEdit} style={styles.editBtn}>
+                <Text style={styles.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
 
       {loading ? (
@@ -202,12 +267,40 @@ export default function EntryScreen() {
             <Text style={styles.goBackText}>Go Back</Text>
           </TouchableOpacity>
         </View>
+      ) : isEditing ? (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView contentContainerStyle={styles.body}>
+            <TextInput
+              style={styles.editTitleInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="Title (optional)"
+              placeholderTextColor={C.placeholder}
+              maxLength={120}
+            />
+            <View style={styles.editDivider} />
+            <TextInput
+              style={styles.editContentInput}
+              value={editContent}
+              onChangeText={setEditContent}
+              placeholder="What's on your mind..."
+              placeholderTextColor={C.placeholder}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+            />
+            {editError ? <Text style={styles.editErrorText}>{editError}</Text> : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
       ) : entry ? (
         <ScrollView contentContainerStyle={styles.body}>
           {entry.title ? (
             <Text style={styles.title}>{entry.title}</Text>
           ) : null}
-          <Text style={styles.date}>{formatDate(entry.created_at)}</Text>
+          <Text style={styles.date}>{getRelativeTime(entry.created_at)}</Text>
           {(entry.mood || entry.mood_score !== null) ? (
             <View style={styles.moodCard}>
               <View style={styles.moodRow}>
@@ -257,6 +350,9 @@ function getStyles(C: typeof DARK) {
       backgroundColor: C.bg,
     },
     header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingTop: 60,
       paddingBottom: 14,
       paddingHorizontal: 20,
@@ -267,8 +363,39 @@ function getStyles(C: typeof DARK) {
       paddingVertical: 4,
     },
     backText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
+    },
+    editBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    editBtnText: {
+      color: C.textMuted,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    editSaveBtn: {
+      backgroundColor: C.accent,
+      borderRadius: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 18,
+      minWidth: 64,
+      alignItems: 'center',
+    },
+    editSaveBtnDisabled: {
+      backgroundColor: C.border,
+    },
+    editSaveBtnText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    editSaveBtnTextDisabled: {
+      color: C.textMuted,
     },
     centered: {
       flex: 1,
@@ -293,10 +420,10 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 28,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: C.separator,
+      borderColor: C.border,
     },
     goBackText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 14,
       fontWeight: '500',
     },
@@ -310,14 +437,16 @@ function getStyles(C: typeof DARK) {
       marginBottom: 8,
     },
     date: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 13,
       marginBottom: 24,
     },
     moodCard: {
-      backgroundColor: C.moodCard,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.moodCardBorder,
+      borderColor: C.border,
+      borderLeftWidth: 3,
+      borderLeftColor: C.accent,
       borderRadius: 12,
       padding: 16,
       marginBottom: 16,
@@ -343,39 +472,39 @@ function getStyles(C: typeof DARK) {
       gap: 10,
     },
     scoreCircles: {
-      color: C.textSub,
+      color: C.accent,
       fontSize: 13,
       letterSpacing: 2,
     },
     scoreText: {
-      color: C.textFaint,
+      color: C.textMuted,
       fontSize: 12,
     },
     insightsCard: {
-      backgroundColor: C.insightsCard,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.insightsCardBorder,
+      borderColor: C.border,
       borderRadius: 12,
       padding: 16,
       marginBottom: 20,
       gap: 8,
     },
     insightsHeading: {
-      color: C.textSub,
+      color: C.accentDeep,
       fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 1,
     },
     insightsText: {
-      color: C.textBody,
+      color: C.text,
       fontSize: 14,
       lineHeight: 22,
     },
     content: {
-      color: C.textBody,
+      color: C.text,
       fontSize: 16,
-      lineHeight: 26,
+      lineHeight: 28,
     },
     deleteBtn: {
       marginTop: 48,
@@ -389,6 +518,30 @@ function getStyles(C: typeof DARK) {
       color: C.error,
       fontSize: 15,
       fontWeight: '600',
+    },
+    editTitleInput: {
+      color: C.text,
+      fontSize: 22,
+      fontWeight: '700',
+      marginBottom: 12,
+      paddingVertical: 0,
+    },
+    editDivider: {
+      height: 1,
+      backgroundColor: C.border,
+      marginBottom: 16,
+    },
+    editContentInput: {
+      color: C.text,
+      fontSize: 16,
+      lineHeight: 26,
+      minHeight: 200,
+      paddingVertical: 0,
+    },
+    editErrorText: {
+      color: C.error,
+      fontSize: 13,
+      marginTop: 8,
     },
   });
 }

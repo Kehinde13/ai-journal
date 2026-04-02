@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
+import { DARK, LIGHT } from '../../constants/colors';
 
 type Entry = {
   id: string;
@@ -20,46 +21,14 @@ type Entry = {
   mood_score: number;
 };
 
-const DARK = {
-  bg: '#0f0f0f',
-  separator: '#1e1e1e',
-  text: '#ffffff',
-  textSub: '#888888',
-  textFaint: '#555555',
-  error: '#ff4d4d',
-  card: '#111111',
-  cardBorder: '#2a2a2a',
-  statCard: '#1a1a2e',
-  statCardBorder: '#2e2e4e',
-  barBg: '#1e1e1e',
-  axisLine: '#2a2a2a',
-  skeleton: '#1e1e1e',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  separator: '#e5e5e5',
-  text: '#000000',
-  textSub: '#555555',
-  textFaint: '#aaaaaa',
-  error: '#cc2200',
-  card: '#f8f8f8',
-  cardBorder: '#e5e5e5',
-  statCard: '#f0f0ff',
-  statCardBorder: '#d0d0f0',
-  barBg: '#f0f0f0',
-  axisLine: '#e0e0e0',
-  skeleton: '#eeeeee',
-};
-
 const CHART_H = 180;
 const BAR_MAX_H = 160;
 
 function barColor(score: number): string {
-  if (score >= 8) return '#4caf7d';
-  if (score >= 6) return '#7abaff';
-  if (score >= 4) return '#f5c842';
-  return '#ff6b6b';
+  if (score >= 8) return '#C4874A';
+  if (score >= 6) return '#D4A574';
+  if (score >= 4) return '#8B5E3C';
+  return '#7B4A2A';
 }
 
 function moodEmoji(mood: string): string {
@@ -80,8 +49,6 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// ── Skeleton ───────────────────────────────────────────────────────────────
-
 function SkeletonChart({ C }: { C: typeof DARK }) {
   const anim = useRef(new Animated.Value(0.4)).current;
 
@@ -100,16 +67,14 @@ function SkeletonChart({ C }: { C: typeof DARK }) {
 
   return (
     <Animated.View style={{ opacity: anim, padding: 20 }}>
-      {/* Chart skeleton */}
       <View style={{ height: 16, width: '40%', borderRadius: 4, backgroundColor: C.skeleton, marginBottom: 20 }} />
-      <View style={[skStyles.chartArea, { borderColor: C.axisLine, height: CHART_H + 20 }]}>
+      <View style={[skStyles.chartArea, { borderColor: C.border, height: CHART_H + 20 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: CHART_H, paddingHorizontal: 8 }}>
           {skeletonBars.map((h, i) => (
             <View key={i} style={{ flex: 1, height: h, borderRadius: 4, backgroundColor: C.skeleton }} />
           ))}
         </View>
       </View>
-      {/* Stat card skeletons */}
       <View style={{ marginTop: 24, gap: 12 }}>
         {[1, 2, 3].map((i) => (
           <View key={i} style={{ height: 72, borderRadius: 12, backgroundColor: C.skeleton }} />
@@ -127,8 +92,6 @@ const skStyles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
-
-// ── Main Screen ────────────────────────────────────────────────────────────
 
 export default function ChartsScreen() {
   const { user } = useAuth();
@@ -154,7 +117,6 @@ export default function ChartsScreen() {
       if (e) {
         setError(e.message);
       } else {
-        // Reverse so oldest → newest (left → right)
         setEntries((data ?? []).reverse());
       }
       setLoading(false);
@@ -162,8 +124,6 @@ export default function ChartsScreen() {
 
     fetch();
   }, []);
-
-  // ── Derived stats ──────────────────────────────────────────────────────
 
   const avgScore =
     entries.length > 0
@@ -179,8 +139,6 @@ export default function ChartsScreen() {
   }
   const topMoodEntry = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0];
   const topMood = topMoodEntry ? topMoodEntry[0] : null;
-
-  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
@@ -216,11 +174,9 @@ export default function ChartsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
-          {/* ── Bar Chart ── */}
           <Text style={styles.sectionLabel}>Mood Score Over Time</Text>
 
           <View style={styles.chartWrapper}>
-            {/* Y-axis ticks */}
             <View style={styles.yAxis}>
               {[10, 8, 6, 4, 2].map((tick) => (
                 <View key={tick} style={styles.yTickRow}>
@@ -229,9 +185,7 @@ export default function ChartsScreen() {
               ))}
             </View>
 
-            {/* Chart body */}
             <View style={styles.chartBody}>
-              {/* Horizontal grid lines */}
               <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                 {[10, 8, 6, 4, 2].map((tick) => {
                   const fromBottom = (tick / 10) * BAR_MAX_H;
@@ -247,9 +201,8 @@ export default function ChartsScreen() {
                 })}
               </View>
 
-              {/* Bars + x labels */}
               <View style={styles.barsContainer}>
-                {entries.map((entry, i) => {
+                {entries.map((entry) => {
                   const barH = Math.max(4, (entry.mood_score / 10) * BAR_MAX_H);
                   return (
                     <View key={entry.id} style={styles.barCol}>
@@ -274,13 +227,12 @@ export default function ChartsScreen() {
             </View>
           </View>
 
-          {/* Score legend */}
           <View style={styles.legend}>
             {[
-              { color: '#4caf7d', label: '8–10 Great' },
-              { color: '#7abaff', label: '6–7 Good' },
-              { color: '#f5c842', label: '4–5 Okay' },
-              { color: '#ff6b6b', label: '1–3 Low' },
+              { color: '#C4874A', label: '8–10 Great' },
+              { color: '#D4A574', label: '6–7 Good' },
+              { color: '#8B5E3C', label: '4–5 Okay' },
+              { color: '#7B4A2A', label: '1–3 Low' },
             ].map(({ color, label }) => (
               <View key={label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -289,7 +241,6 @@ export default function ChartsScreen() {
             ))}
           </View>
 
-          {/* ── Breakdown Stats ── */}
           <Text style={[styles.sectionLabel, { marginTop: 28 }]}>Breakdown</Text>
 
           <View style={styles.statsGrid}>
@@ -339,7 +290,7 @@ function getStyles(C: typeof DARK) {
       paddingVertical: 4,
     },
     backText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
     },
     heading: {
@@ -374,7 +325,7 @@ function getStyles(C: typeof DARK) {
       textAlign: 'center',
     },
     emptyHint: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 14,
       textAlign: 'center',
       lineHeight: 20,
@@ -385,10 +336,10 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 28,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: C.separator,
+      borderColor: C.border,
     },
     goBackText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 14,
       fontWeight: '500',
     },
@@ -397,15 +348,13 @@ function getStyles(C: typeof DARK) {
       paddingBottom: 40,
     },
     sectionLabel: {
-      color: C.textSub,
+      color: C.accentDeep,
       fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 1,
       marginBottom: 14,
     },
-
-    // ── Chart ──
     chartWrapper: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -422,7 +371,7 @@ function getStyles(C: typeof DARK) {
       alignItems: 'flex-end',
     },
     yTickLabel: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 10,
     },
     chartBody: {
@@ -435,13 +384,13 @@ function getStyles(C: typeof DARK) {
       left: 0,
       right: 0,
       height: 1,
-      backgroundColor: C.axisLine,
+      backgroundColor: C.border,
     },
     barsContainer: {
       flexDirection: 'row',
       alignItems: 'flex-end',
       height: CHART_H,
-      paddingBottom: 32, // space for x labels
+      paddingBottom: 32,
       gap: 4,
     },
     barCol: {
@@ -462,14 +411,12 @@ function getStyles(C: typeof DARK) {
       minHeight: 4,
     },
     xLabel: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 8,
       marginTop: 4,
       textAlign: 'center',
       width: '100%',
     },
-
-    // ── Legend ──
     legend: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -487,11 +434,9 @@ function getStyles(C: typeof DARK) {
       borderRadius: 4,
     },
     legendText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 11,
     },
-
-    // ── Stats ──
     statsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -502,18 +447,18 @@ function getStyles(C: typeof DARK) {
       minWidth: 120,
       backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.cardBorder,
+      borderColor: C.border,
       borderRadius: 12,
       padding: 16,
       gap: 4,
     },
     statCardWide: {
       flexBasis: '100%',
-      backgroundColor: C.statCard,
-      borderColor: C.statCardBorder,
+      borderLeftWidth: 3,
+      borderLeftColor: C.accent,
     },
     statCardLabel: {
-      color: C.textSub,
+      color: C.accentDeep,
       fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
@@ -535,12 +480,12 @@ function getStyles(C: typeof DARK) {
       textTransform: 'capitalize',
     },
     statValue: {
-      color: C.text,
+      color: C.accent,
       fontSize: 28,
       fontWeight: '700',
     },
     statUnit: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 12,
     },
   });

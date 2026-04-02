@@ -14,41 +14,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
 import { analyseEntry } from '../../services/ai';
-
-const DARK = {
-  bg: '#0f0f0f',
-  separator: '#1e1e1e',
-  text: '#ffffff',
-  textBody: '#cccccc',
-  textSub: '#888888',
-  placeholder: '#444444',
-  error: '#ff4d4d',
-  btnBg: '#ffffff',
-  btnText: '#000000',
-  btnDisabled: '#333333',
-  btnTextDisabled: '#666666',
-  toastBg: '#ff4d4d',
-  charCount: '#555555',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  separator: '#e5e5e5',
-  text: '#000000',
-  textBody: '#333333',
-  textSub: '#555555',
-  placeholder: '#aaaaaa',
-  error: '#cc2200',
-  btnBg: '#000000',
-  btnText: '#ffffff',
-  btnDisabled: '#dddddd',
-  btnTextDisabled: '#aaaaaa',
-  toastBg: '#cc2200',
-  charCount: '#aaaaaa',
-};
+import { DARK, LIGHT } from '../../constants/colors';
 
 export default function NewEntryScreen() {
   const { user } = useAuth();
@@ -137,6 +107,7 @@ export default function NewEntryScreen() {
       console.log('[AI] analyseEntry threw:', err instanceof Error ? err.message : String(err));
     }
 
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace(`/entry/${inserted.id}`);
   };
 
@@ -157,7 +128,7 @@ export default function NewEntryScreen() {
           style={[styles.saveBtn, isBusy && styles.saveBtnDisabled]}
         >
           {loading ? (
-            <ActivityIndicator color={isBusy ? C.btnTextDisabled : C.btnText} size="small" />
+            <ActivityIndicator color="#ffffff" size="small" />
           ) : (
             <Text style={[styles.saveBtnText, isBusy && styles.saveBtnTextDisabled]}>Save</Text>
           )}
@@ -173,9 +144,10 @@ export default function NewEntryScreen() {
           onChangeText={setTitle}
           maxLength={120}
         />
+        <View style={styles.divider} />
         <TextInput
           style={styles.contentInput}
-          placeholder="Write something..."
+          placeholder="What's on your mind..."
           placeholderTextColor={C.placeholder}
           value={content}
           onChangeText={setContent}
@@ -201,7 +173,7 @@ export default function NewEntryScreen() {
 
       <Modal visible={analysing} transparent animationType="fade">
         <View style={styles.overlay}>
-          <ActivityIndicator color="#ffffff" size="large" />
+          <ActivityIndicator color={C.accent} size="large" />
           <Text style={styles.overlayText}>Analysing mood...</Text>
         </View>
       </Modal>
@@ -230,27 +202,27 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 4,
     },
     backText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
     },
     saveBtn: {
-      backgroundColor: C.btnBg,
-      borderRadius: 8,
+      backgroundColor: C.accent,
+      borderRadius: 10,
       paddingVertical: 8,
       paddingHorizontal: 18,
       minWidth: 64,
       alignItems: 'center',
     },
     saveBtnDisabled: {
-      backgroundColor: C.btnDisabled,
+      backgroundColor: C.border,
     },
     saveBtnText: {
-      color: C.btnText,
+      color: '#ffffff',
       fontSize: 14,
       fontWeight: '600',
     },
     saveBtnTextDisabled: {
-      color: C.btnTextDisabled,
+      color: C.textMuted,
     },
     body: {
       flex: 1,
@@ -260,14 +232,19 @@ function getStyles(C: typeof DARK) {
       color: C.text,
       fontSize: 22,
       fontWeight: '700',
-      marginBottom: 16,
+      marginBottom: 12,
       paddingVertical: 0,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: C.border,
+      marginBottom: 16,
     },
     contentInput: {
       flex: 1,
-      color: C.textBody,
+      color: C.text,
       fontSize: 16,
-      lineHeight: 24,
+      lineHeight: 26,
       paddingVertical: 0,
     },
     contentFooter: {
@@ -281,7 +258,7 @@ function getStyles(C: typeof DARK) {
       fontSize: 13,
     },
     charCount: {
-      color: C.charCount,
+      color: C.placeholder,
       fontSize: 12,
     },
     toast: {
@@ -289,7 +266,7 @@ function getStyles(C: typeof DARK) {
       top: 120,
       left: 20,
       right: 20,
-      backgroundColor: C.toastBg,
+      backgroundColor: C.error,
       borderRadius: 10,
       paddingVertical: 12,
       paddingHorizontal: 16,
@@ -301,13 +278,13 @@ function getStyles(C: typeof DARK) {
     },
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.75)',
+      backgroundColor: 'rgba(28,22,18,0.85)',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 16,
     },
     overlayText: {
-      color: '#ffffff',
+      color: C.text,
       fontSize: 16,
       fontWeight: '500',
     },

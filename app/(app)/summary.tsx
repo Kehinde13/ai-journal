@@ -13,38 +13,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
 import { weeklySummary, WeeklySummaryResult } from '../../services/ai';
-
-const DARK = {
-  bg: '#0f0f0f',
-  separator: '#1e1e1e',
-  text: '#ffffff',
-  textBody: '#cccccc',
-  textSub: '#888888',
-  textFaint: '#555555',
-  error: '#ff4d4d',
-  moodCard: '#1a1a2e',
-  moodCardBorder: '#2e2e4e',
-  summaryCard: '#111111',
-  summaryCardBorder: '#2a2a2a',
-  insightDot: '#444444',
-  emptyText: '#666666',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  separator: '#e5e5e5',
-  text: '#000000',
-  textBody: '#333333',
-  textSub: '#555555',
-  textFaint: '#888888',
-  error: '#cc2200',
-  moodCard: '#f0f0ff',
-  moodCardBorder: '#d0d0f0',
-  summaryCard: '#f8f8f8',
-  summaryCardBorder: '#e5e5e5',
-  insightDot: '#cccccc',
-  emptyText: '#999999',
-};
+import { DARK, LIGHT } from '../../constants/colors';
 
 function moodEmoji(mood: string) {
   const m = mood.toLowerCase();
@@ -145,7 +114,7 @@ export default function SummaryScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={C.text} size="large" />
+          <ActivityIndicator color={C.accent} size="large" />
           <Text style={styles.loadingText}>
             {loadingStep === 'fetching' ? 'Reading your entries...' : 'Generating summary...'}
           </Text>
@@ -219,7 +188,7 @@ function getStyles(C: typeof DARK) {
       paddingVertical: 4,
     },
     backText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
     },
     heading: {
@@ -236,7 +205,7 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 32,
     },
     loadingText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
     },
     errorText: {
@@ -255,7 +224,7 @@ function getStyles(C: typeof DARK) {
       textAlign: 'center',
     },
     emptyHint: {
-      color: C.emptyText,
+      color: C.textMuted,
       fontSize: 14,
       textAlign: 'center',
       lineHeight: 20,
@@ -266,10 +235,10 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 28,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: C.separator,
+      borderColor: C.border,
     },
     backLinkText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 14,
       fontWeight: '500',
     },
@@ -278,7 +247,7 @@ function getStyles(C: typeof DARK) {
       gap: 16,
     },
     sectionLabel: {
-      color: C.textSub,
+      color: C.accentDeep,
       fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
@@ -286,9 +255,11 @@ function getStyles(C: typeof DARK) {
       marginBottom: 10,
     },
     moodCard: {
-      backgroundColor: C.moodCard,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.moodCardBorder,
+      borderColor: C.border,
+      borderLeftWidth: 3,
+      borderLeftColor: C.accent,
       borderRadius: 12,
       padding: 16,
     },
@@ -307,21 +278,21 @@ function getStyles(C: typeof DARK) {
       textTransform: 'capitalize',
     },
     summaryCard: {
-      backgroundColor: C.summaryCard,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.summaryCardBorder,
+      borderColor: C.border,
       borderRadius: 12,
       padding: 16,
     },
     summaryText: {
-      color: C.textBody,
+      color: C.text,
       fontSize: 15,
       lineHeight: 24,
     },
     insightsCard: {
-      backgroundColor: C.summaryCard,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.summaryCardBorder,
+      borderColor: C.border,
       borderRadius: 12,
       padding: 16,
     },
@@ -331,13 +302,13 @@ function getStyles(C: typeof DARK) {
       marginBottom: 10,
     },
     insightDot: {
-      color: C.insightDot,
+      color: C.accent,
       fontSize: 8,
       lineHeight: 22,
     },
     insightText: {
       flex: 1,
-      color: C.textBody,
+      color: C.text,
       fontSize: 14,
       lineHeight: 22,
     },

@@ -13,32 +13,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '@config/supabase';
-
-const DARK = {
-  bg: '#0f0f0f',
-  surface: '#1a1a1a',
-  border: '#2a2a2a',
-  text: '#ffffff',
-  placeholder: '#555555',
-  error: '#ff4d4d',
-  btnBg: '#ffffff',
-  btnText: '#000000',
-  linkText: '#555555',
-  linkHighlight: '#ffffff',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  surface: '#f2f2f2',
-  border: '#d5d5d5',
-  text: '#000000',
-  placeholder: '#aaaaaa',
-  error: '#cc2200',
-  btnBg: '#000000',
-  btnText: '#ffffff',
-  linkText: '#888888',
-  linkHighlight: '#000000',
-};
+import { DARK, LIGHT } from '../../constants/colors';
 
 export default function SignupScreen() {
   const [email, setEmail] = useState('');
@@ -76,6 +51,7 @@ export default function SignupScreen() {
     >
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={styles.inner}>
+        <Text style={styles.appName}>📝 AI Journal</Text>
         <Text style={styles.title}>Create account</Text>
 
         <TextInput
@@ -102,7 +78,7 @@ export default function SignupScreen() {
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleSignup} disabled={loading}>
           {loading ? (
-            <ActivityIndicator color={C.btnText} />
+            <ActivityIndicator color="#ffffff" />
           ) : (
             <Text style={styles.primaryButtonText}>Create account</Text>
           )}
@@ -111,7 +87,8 @@ export default function SignupScreen() {
         <Link href="/(auth)/login" asChild>
           <TouchableOpacity style={styles.linkRow}>
             <Text style={styles.linkText}>
-              Already have an account? <Text style={styles.linkHighlight}>Sign in</Text>
+              Already have an account?{' '}
+              <Text style={styles.linkHighlight}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </Link>
@@ -131,6 +108,12 @@ function getStyles(C: typeof DARK) {
       justifyContent: 'center',
       paddingHorizontal: 28,
     },
+    appName: {
+      color: C.accent,
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
     title: {
       color: C.text,
       fontSize: 28,
@@ -138,15 +121,15 @@ function getStyles(C: typeof DARK) {
       marginBottom: 32,
     },
     input: {
-      backgroundColor: C.surface,
+      backgroundColor: C.inputBg,
       color: C.text,
-      borderRadius: 10,
+      borderRadius: 12,
       paddingHorizontal: 16,
       paddingVertical: 14,
       fontSize: 15,
       marginBottom: 12,
       borderWidth: 1,
-      borderColor: C.border,
+      borderColor: C.inputBorder,
     },
     error: {
       color: C.error,
@@ -154,14 +137,14 @@ function getStyles(C: typeof DARK) {
       marginBottom: 12,
     },
     primaryButton: {
-      backgroundColor: C.btnBg,
-      borderRadius: 10,
+      backgroundColor: C.accent,
+      borderRadius: 12,
       paddingVertical: 15,
       alignItems: 'center',
       marginTop: 4,
     },
     primaryButtonText: {
-      color: C.btnText,
+      color: '#ffffff',
       fontSize: 15,
       fontWeight: '600',
     },
@@ -170,11 +153,11 @@ function getStyles(C: typeof DARK) {
       alignItems: 'center',
     },
     linkText: {
-      color: C.linkText,
+      color: C.textMuted,
       fontSize: 14,
     },
     linkHighlight: {
-      color: C.linkHighlight,
+      color: C.accent,
       fontWeight: '600',
     },
   });

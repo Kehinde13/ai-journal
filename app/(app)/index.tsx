@@ -9,11 +9,16 @@ import {
   StyleSheet,
   Animated,
   StatusBar,
+  RefreshControl,
   useColorScheme,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '@config/supabase';
 import { useAuth } from '@context/AuthContext';
+import { getRelativeTime } from '../../utils/time';
+import { DARK, LIGHT } from '../../constants/colors';
 
 type Entry = {
   id: string;
@@ -23,57 +28,12 @@ type Entry = {
   mood: string | null;
 };
 
-const DARK = {
-  bg: '#0f0f0f',
-  separator: '#1e1e1e',
-  text: '#ffffff',
-  textSub: '#888888',
-  textMuted: '#555555',
-  textFaint: '#444444',
-  error: '#ff4d4d',
-  btnBg: '#ffffff',
-  btnText: '#000000',
-  summaryBg: '#1a1a2e',
-  summaryBorder: '#2e2e4e',
-  summaryText: '#aaaacc',
-  trendsBg: '#0f1f0f',
-  trendsBorder: '#1e3a1e',
-  trendsText: '#7ab87a',
-  searchBg: '#1a1a1a',
-  searchBorder: '#2a2a2a',
-  chipBg: '#1e1e1e',
-  chipBorder: '#2a2a2a',
-  chipText: '#888888',
-  chipActiveBg: '#ffffff',
-  chipActiveText: '#000000',
-  skeleton: '#1e1e1e',
-};
-
-const LIGHT = {
-  bg: '#ffffff',
-  separator: '#e5e5e5',
-  text: '#000000',
-  textSub: '#555555',
-  textMuted: '#999999',
-  textFaint: '#bbbbbb',
-  error: '#cc2200',
-  btnBg: '#000000',
-  btnText: '#ffffff',
-  summaryBg: '#f0f0ff',
-  summaryBorder: '#d0d0f0',
-  summaryText: '#5555aa',
-  trendsBg: '#f0fff4',
-  trendsBorder: '#c3e6cb',
-  trendsText: '#2d7a3a',
-  searchBg: '#f5f5f5',
-  searchBorder: '#e0e0e0',
-  chipBg: '#f0f0f0',
-  chipBorder: '#e0e0e0',
-  chipText: '#555555',
-  chipActiveBg: '#000000',
-  chipActiveText: '#ffffff',
-  skeleton: '#eeeeee',
-};
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 const skW = StyleSheet.create({
   w25: { width: '25%' },
@@ -159,14 +119,22 @@ export default function HomeScreen() {
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [isOffline, setIsOffline] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 300ms debounce on search input
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(state.isConnected === false);
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
@@ -198,6 +166,19 @@ export default function HomeScreen() {
     fetchEntries();
   };
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError('');
+    const { data, error: e } = await supabase
+      .from('entries')
+      .select('id, title, content, created_at, mood')
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false });
+    if (e) setError(e.message);
+    else setEntries(data ?? []);
+    setRefreshing(false);
+  }, [user]);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -205,7 +186,11 @@ export default function HomeScreen() {
     }, [])
   );
 
-  // Unique moods from all entries (preserve insertion order, deduplicate)
+  const handleSignOut = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    signOut();
+  };
+
   const uniqueMoods = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
@@ -221,14 +206,12 @@ export default function HomeScreen() {
     return result;
   }, [entries]);
 
-  // Reset mood chip if it no longer appears in entries after a reload
   useEffect(() => {
     if (selectedMood && !uniqueMoods.includes(selectedMood)) {
       setSelectedMood(null);
     }
   }, [uniqueMoods]);
 
-  // Combined filter
   const filteredEntries = useMemo(() => {
     let result = entries;
     if (selectedMood) {
@@ -245,19 +228,23 @@ export default function HomeScreen() {
     return result;
   }, [entries, selectedMood, debouncedQuery]);
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
 
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>No internet connection</Text>
+        </View>
+      )}
+
       <View style={styles.header}>
-        <Text style={styles.heading}>Journal</Text>
+        <View>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.heading}>📝 Journal</Text>
+        </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={signOut} style={styles.signOutBtn}>
+          <TouchableOpacity onPress={handleSignOut} style={styles.signOutBtn}>
             <Text style={styles.signOutText}>Sign out</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -306,7 +293,6 @@ export default function HomeScreen() {
         </View>
       ) : (
         <>
-          {/* ── Search bar ── */}
           <View style={styles.searchRow}>
             <View style={styles.searchInputWrap}>
               <Text style={styles.searchIcon}>⌕</Text>
@@ -315,7 +301,7 @@ export default function HomeScreen() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search entries..."
-                placeholderTextColor={C.textFaint}
+                placeholderTextColor={C.placeholder}
                 returnKeyType="search"
                 autoCorrect={false}
                 autoCapitalize="none"
@@ -331,7 +317,6 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* ── Mood filter chips ── */}
           {uniqueMoods.length > 0 && (
             <ScrollView
               horizontal
@@ -339,21 +324,12 @@ export default function HomeScreen() {
               contentContainerStyle={styles.chipsRow}
               style={styles.chipsScroll}
             >
-              {/* All chip */}
               <TouchableOpacity
-                style={[
-                  styles.chip,
-                  selectedMood === null && styles.chipActive,
-                ]}
+                style={[styles.chip, selectedMood === null && styles.chipActive]}
                 onPress={() => setSelectedMood(null)}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedMood === null && styles.chipTextActive,
-                  ]}
-                >
+                <Text style={[styles.chipText, selectedMood === null && styles.chipTextActive]}>
                   All
                 </Text>
               </TouchableOpacity>
@@ -361,21 +337,11 @@ export default function HomeScreen() {
               {uniqueMoods.map((mood) => (
                 <TouchableOpacity
                   key={mood}
-                  style={[
-                    styles.chip,
-                    selectedMood === mood && styles.chipActive,
-                  ]}
-                  onPress={() =>
-                    setSelectedMood((prev) => (prev === mood ? null : mood))
-                  }
+                  style={[styles.chip, selectedMood === mood && styles.chipActive]}
+                  onPress={() => setSelectedMood((prev) => (prev === mood ? null : mood))}
                   activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selectedMood === mood && styles.chipTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.chipText, selectedMood === mood && styles.chipTextActive]}>
                     {moodEmoji(mood)}{' '}
                     {mood.charAt(0).toUpperCase() + mood.slice(1)}
                   </Text>
@@ -384,7 +350,6 @@ export default function HomeScreen() {
             </ScrollView>
           )}
 
-          {/* ── Results / No-results ── */}
           {filteredEntries.length === 0 ? (
             <View style={styles.centered}>
               <Text style={styles.noResultsEmoji}>🔍</Text>
@@ -408,6 +373,13 @@ export default function HomeScreen() {
               contentContainerStyle={styles.list}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
               keyboardShouldPersistTaps="handled"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={C.accent}
+                />
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.card}
@@ -418,10 +390,10 @@ export default function HomeScreen() {
                     {item.title || 'Untitled'}
                   </Text>
                   <Text style={styles.cardPreview} numberOfLines={2}>
-                    {item.content}
+                    {item.content.length > 80 ? item.content.slice(0, 80) + '…' : item.content}
                   </Text>
                   <View style={styles.cardMeta}>
-                    <Text style={styles.cardDate}>{formatDate(item.created_at)}</Text>
+                    <Text style={styles.cardDate}>{getRelativeTime(item.created_at)}</Text>
                     {item.mood ? (
                       <Text style={styles.cardMood}>
                         {moodEmoji(item.mood)} {item.mood}
@@ -444,6 +416,17 @@ function getStyles(C: typeof DARK) {
       flex: 1,
       backgroundColor: C.bg,
     },
+    offlineBanner: {
+      backgroundColor: C.error,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    offlineBannerText: {
+      color: '#ffffff',
+      fontSize: 13,
+      fontWeight: '600',
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -453,6 +436,11 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 20,
       borderBottomWidth: 1,
       borderBottomColor: C.separator,
+    },
+    greeting: {
+      color: C.textMuted,
+      fontSize: 13,
+      marginBottom: 2,
     },
     heading: {
       color: C.text,
@@ -476,12 +464,12 @@ function getStyles(C: typeof DARK) {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: C.btnBg,
+      backgroundColor: C.accent,
       alignItems: 'center',
       justifyContent: 'center',
     },
     addBtnText: {
-      color: C.btnText,
+      color: '#ffffff',
       fontSize: 22,
       lineHeight: 24,
       fontWeight: '400',
@@ -508,10 +496,10 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 24,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: C.separator,
+      borderColor: C.border,
     },
     retryText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 14,
       fontWeight: '500',
     },
@@ -533,7 +521,7 @@ function getStyles(C: typeof DARK) {
       marginBottom: 4,
     },
     noResultsText: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 15,
       textAlign: 'center',
       paddingHorizontal: 24,
@@ -542,41 +530,40 @@ function getStyles(C: typeof DARK) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: C.summaryBg,
+      backgroundColor: C.card,
       borderBottomWidth: 1,
-      borderBottomColor: C.summaryBorder,
+      borderBottomColor: C.border,
       paddingVertical: 12,
       paddingHorizontal: 20,
     },
     summaryStripText: {
-      color: C.summaryText,
+      color: C.accent,
       fontSize: 13,
       fontWeight: '600',
     },
     summaryStripArrow: {
-      color: C.summaryText,
+      color: C.accent,
       fontSize: 15,
     },
     trendsStrip: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: C.trendsBg,
+      backgroundColor: C.card,
       borderBottomWidth: 1,
-      borderBottomColor: C.trendsBorder,
+      borderBottomColor: C.border,
       paddingVertical: 12,
       paddingHorizontal: 20,
     },
     trendsStripText: {
-      color: C.trendsText,
+      color: C.accentDeep,
       fontSize: 13,
       fontWeight: '600',
     },
     trendsStripArrow: {
-      color: C.trendsText,
+      color: C.accentDeep,
       fontSize: 15,
     },
-    // ── Search ──
     searchRow: {
       paddingHorizontal: 16,
       paddingTop: 12,
@@ -585,16 +572,16 @@ function getStyles(C: typeof DARK) {
     searchInputWrap: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: C.searchBg,
+      backgroundColor: C.card,
       borderWidth: 1,
-      borderColor: C.searchBorder,
+      borderColor: C.border,
       borderRadius: 10,
       paddingHorizontal: 12,
       height: 40,
       gap: 8,
     },
     searchIcon: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 18,
       lineHeight: 22,
     },
@@ -605,12 +592,11 @@ function getStyles(C: typeof DARK) {
       paddingVertical: 0,
     },
     clearBtn: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 20,
       lineHeight: 22,
       paddingLeft: 4,
     },
-    // ── Mood chips ──
     chipsScroll: {
       flexGrow: 0,
     },
@@ -625,22 +611,21 @@ function getStyles(C: typeof DARK) {
       paddingHorizontal: 12,
       borderRadius: 20,
       borderWidth: 1,
-      backgroundColor: C.chipBg,
-      borderColor: C.chipBorder,
+      backgroundColor: C.card,
+      borderColor: C.border,
     },
     chipActive: {
-      backgroundColor: C.chipActiveBg,
-      borderColor: C.chipActiveBg,
+      backgroundColor: C.accent,
+      borderColor: C.accent,
     },
     chipText: {
-      color: C.chipText,
+      color: C.textMuted,
       fontSize: 13,
     },
     chipTextActive: {
-      color: C.chipActiveText,
+      color: '#ffffff',
       fontWeight: '600',
     },
-    // ── List ──
     list: {
       padding: 20,
     },
@@ -650,6 +635,9 @@ function getStyles(C: typeof DARK) {
     },
     card: {
       paddingVertical: 16,
+      paddingLeft: 14,
+      borderLeftWidth: 3,
+      borderLeftColor: C.accent,
     },
     cardTitle: {
       color: C.text,
@@ -658,7 +646,7 @@ function getStyles(C: typeof DARK) {
       marginBottom: 4,
     },
     cardPreview: {
-      color: C.textSub,
+      color: C.textMuted,
       fontSize: 13,
       lineHeight: 18,
       marginBottom: 8,
@@ -669,11 +657,11 @@ function getStyles(C: typeof DARK) {
       justifyContent: 'space-between',
     },
     cardDate: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 12,
     },
     cardMood: {
-      color: C.textFaint,
+      color: C.placeholder,
       fontSize: 12,
       textTransform: 'capitalize',
     },
