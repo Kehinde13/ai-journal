@@ -4,7 +4,9 @@
       "Bash(ls /c/Users/DELL/web/ai-journal/babel.config.*)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''expo'''',{}\\), indent=2\\)\\)\")",
       "Bash(npx tsc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)"
     ]
   }
 }
