@@ -37,5 +37,9 @@
     "typescript": "~5.9.2",
     "vitest": "^4.1.2"
   },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
   "private": true
 }
