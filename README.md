@@ -100,7 +100,7 @@ npx vitest --coverage
 
 The app connects to a separate backend for all AI processing.
 
-**Base URL:** `https://ai-journal-backend-wqsi.onrender.com`
+**Base URL:** `https://ai-journal-backend-wqsi.onrender.com/Health`
 
 | Endpoint | Method | Purpose |
 |---|---|---|
