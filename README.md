@@ -2,6 +2,11 @@
 
 An AI-powered journaling platform that helps users understand their emotional well-being through intelligent mood analysis, sentiment tracking, and personalized insights.
 
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
+![React Native](https://img.shields.io/badge/React%20Native-Mobile-green)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-success)
+![AI Powered](https://img.shields.io/badge/AI-Powered-purple)
+
 Rather than simply storing journal entries, AI Journal transforms personal reflections into actionable insights by identifying emotional patterns, analyzing sentiment, and generating meaningful summaries that help users better understand their mental and emotional state over time.
 
 ---
@@ -23,6 +28,18 @@ AI Journal bridges that gap by combining journaling with AI-powered analysis, tu
 - Cross-platform mobile experience
 - Offline-aware user experience
 - Visual mood tracking and analytics
+
+---
+
+## Key Technical Achievements
+
+- Built a complete AI-powered mobile application using React Native and Expo
+- Integrated Supabase Authentication with Google OAuth
+- Implemented secure Row-Level Security (RLS) policies
+- Designed and integrated a dedicated AI analysis backend
+- Generated personalized mood insights and weekly summaries
+- Created data visualizations for emotional trend tracking
+- Implemented offline detection and resilient user experiences
 
 ---
 
@@ -224,15 +241,22 @@ Ensuring a consistent experience across devices and operating systems.
 
 ## AI-Assisted Development
 
-This project was built using modern AI-assisted development workflows.
+This project was developed using AI-assisted engineering workflows.
 
 ### Tools Used
 
 - GitHub Copilot
 - Claude
-- AI-assisted debugging and documentation workflows
 
-AI tools accelerated implementation, testing, and documentation while all architectural decisions, system design, feature prioritization, and final code reviews were performed manually.
+### How AI Was Used
+
+- Accelerating component development
+- Generating boilerplate code
+- Debugging implementation issues
+- Improving test coverage
+- Drafting technical documentation
+
+All architecture decisions, feature design, security considerations, code reviews, and final implementation decisions were made manually.
 
 ---
 
