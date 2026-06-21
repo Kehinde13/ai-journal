@@ -150,30 +150,30 @@ ai-journal/
 
 ### Authentication
 
-![Login Screen](./screenshots/login-page.jpeg)
+![Login Screen](./assets/screenshots/login-page.jpeg)
 
 
 ### Journal Dashboard
 
 
-![Dashboard](./screenshots/dashboard.jpeg)
+![Dashboard](./assets/screenshots/dashboard.jpeg)
 
 
 ### Mood Insights
 
 
-![Mood Insights](./screenshots/insights.jpeg)
+![Mood Insights](./assets/screenshots/insights.jpeg)
 
 
 ### Mood Analytics
 
 
-![Mood Analytics](./screenshots/mood-trends.jpeg)
+![Mood Analytics](./assets/screenshots/mood-trends.jpeg)
 
 
 ### Weekly Summary
 
-![Weekly Summary](./screenshots/weekly-summary.jpeg)
+![Weekly Summary](./assets/screenshots/weekly-summary.jpeg)
 
 
 ---
