@@ -147,37 +147,34 @@ ai-journal/
 
 ## Screenshots
 
-> Add screenshots of the application here.
 
 ### Authentication
 
-```md
 ![Login Screen](./screenshots/login-page.jpeg)
-```
+
 
 ### Journal Dashboard
 
-```md
+
 ![Dashboard](./screenshots/dashboard.jpeg)
-```
+
 
 ### Mood Insights
 
-```md
+
 ![Mood Insights](./screenshots/insights.jpeg)
-```
+
 
 ### Mood Analytics
 
-```md
+
 ![Mood Analytics](./screenshots/mood-trends.jpeg)
-```
+
 
 ### Weekly Summary
 
-```md
 ![Weekly Summary](./screenshots/weekly-summary.jpeg)
-```
+
 
 ---
 
